@@ -1,4 +1,4 @@
-import { handleUpload } from '@vercel/blob/client';
+import { handleUpload } from '@vercel/blob';
 import { NextResponse } from 'next/server';
 import { isAuthed } from '@/lib/auth';
 
