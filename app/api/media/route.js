@@ -1,7 +1,7 @@
 import { del } from '@vercel/blob';
 import { NextResponse } from 'next/server';
 import { isAuthed } from '@/lib/auth';
-import { readPlaylist, writePlaylist } from '@/lib/playlist';
+import { readPlaylist, writePlaylist, hasBlobStore } from '@/lib/playlist';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,16 +39,46 @@ export async function DELETE(request) {
   if (!isAuthed(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-
-  const body = await request.json().catch(() => null);
-  if (!body?.url) {
-    return NextResponse.json({ error: 'Missing url.' }, { status: 400 });
+  if (!hasBlobStore()) {
+    return NextResponse.json(
+      { error: 'No Blob store configured (BLOB_READ_WRITE_TOKEN missing).' },
+      { status: 500 }
+    );
   }
 
-  await del(body.url);
+  const body = await request.json().catch(() => null);
+  if (!body?.url && !body?.pathname && !body?.id) {
+    return NextResponse.json({ error: 'Missing media identifier.' }, { status: 400 });
+  }
 
   const playlist = await readPlaylist();
-  playlist.items = playlist.items.filter((item) => item.url !== body.url);
-  await writePlaylist(playlist);
-  return NextResponse.json(playlist);
+  const item = playlist.items.find(
+    (entry) =>
+      entry.url === body.url ||
+      entry.pathname === body.pathname ||
+      entry.id === body.id
+  );
+
+  if (!item) {
+    return NextResponse.json(playlist);
+  }
+
+  const nextPlaylist = {
+    ...playlist,
+    items: playlist.items.filter((entry) => entry !== item),
+  };
+
+  await writePlaylist(nextPlaylist);
+
+  try {
+    await del(item.pathname || item.url);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({
+      ...nextPlaylist,
+      warning: `Removed from playlist, but deleting the file from Blob failed: ${message}`,
+    });
+  }
+
+  return NextResponse.json(nextPlaylist);
 }

@@ -126,10 +126,12 @@ export default function Admin() {
     const res = await fetch('/api/media', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: item.url }),
+      body: JSON.stringify({ id: item.id, url: item.url, pathname: item.pathname }),
     });
     if (res.ok) {
-      setPlaylist(await res.json());
+      const data = await res.json();
+      setPlaylist({ items: data.items, settings: data.settings });
+      if (data.warning) setError(data.warning);
     } else {
       const data = await res.json().catch(() => ({}));
       setError(data.error || 'Delete failed.');
