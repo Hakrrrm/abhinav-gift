@@ -76,6 +76,7 @@ export default function Admin() {
             pathname: blob.pathname,
             contentType: blob.contentType || file.type,
             name: file.name,
+            settings: playlist.settings,
           }),
         });
         if (!res.ok) throw new Error('Upload succeeded but adding to playlist failed.');
@@ -120,13 +121,19 @@ export default function Admin() {
     savePlaylist({ ...playlist, items });
   }
 
-  async function handleDelete(item) {
+  async function handleDelete(item, index) {
     if (!confirm(`Delete "${item.name}"? This removes the file permanently.`)) return;
     setError('');
     const res = await fetch('/api/media', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: item.id, url: item.url, pathname: item.pathname }),
+      body: JSON.stringify({
+        index,
+        id: item.id,
+        url: item.url,
+        pathname: item.pathname,
+        settings: playlist.settings,
+      }),
     });
     if (res.ok) {
       const data = await res.json();
@@ -139,7 +146,10 @@ export default function Admin() {
   }
 
   function setImageDuration(value) {
-    setPlaylist((p) => ({ ...p, settings: { ...p.settings, imageDurationSeconds: value } }));
+    setPlaylist((p) => ({
+      ...p,
+      settings: { ...p.settings, imageDurationSeconds: Number(value) },
+    }));
   }
 
   if (authed === null) {
@@ -234,7 +244,7 @@ export default function Admin() {
                 <div className="media-actions">
                   <button className="icon" title="Move up" disabled={i === 0 || saving} onClick={() => move(i, -1)}>↑</button>
                   <button className="icon" title="Move down" disabled={i === playlist.items.length - 1 || saving} onClick={() => move(i, 1)}>↓</button>
-                  <button className="icon danger" title="Delete" disabled={saving} onClick={() => handleDelete(item)}>✕</button>
+                  <button className="icon danger" title="Delete" disabled={saving} onClick={() => handleDelete(item, i)}>✕</button>
                 </div>
               </li>
             ))}
