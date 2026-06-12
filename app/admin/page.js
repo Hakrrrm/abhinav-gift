@@ -7,10 +7,16 @@ export default function Admin() {
   const [authed, setAuthed] = useState(null); // null = checking
   const [password, setPassword] = useState('');
   const [playlist, setPlaylist] = useState({ items: [], settings: { imageDurationSeconds: 8 } });
+  const [imageDurationSeconds, setImageDurationSeconds] = useState(8);
   const [error, setError] = useState('');
   const [uploadStatus, setUploadStatus] = useState('');
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef(null);
+
+  function applyPlaylist(data, fallbackImageDurationSeconds = imageDurationSeconds) {
+    setPlaylist(data);
+    setImageDurationSeconds(data.settings?.imageDurationSeconds ?? fallbackImageDurationSeconds);
+  }
 
   useEffect(() => {
     fetch('/api/auth')
@@ -24,7 +30,10 @@ export default function Admin() {
 
   async function refresh() {
     const res = await fetch('/api/playlist', { cache: 'no-store' });
-    if (res.ok) setPlaylist(await res.json());
+    if (res.ok) {
+      const data = await res.json();
+      applyPlaylist(data, 8);
+    }
   }
 
   async function handleLogin(e) {
@@ -76,11 +85,11 @@ export default function Admin() {
             pathname: blob.pathname,
             contentType: blob.contentType || file.type,
             name: file.name,
-            settings: playlist.settings,
+            settings: { ...playlist.settings, imageDurationSeconds },
           }),
         });
         if (!res.ok) throw new Error('Upload succeeded but adding to playlist failed.');
-        setPlaylist(await res.json());
+        applyPlaylist(await res.json());
       } catch (err) {
         setError(`Failed to upload ${file.name}: ${err.message}`);
         break;
@@ -104,7 +113,7 @@ export default function Admin() {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || 'Save failed.');
       }
-      setPlaylist(await res.json());
+      applyPlaylist(await res.json(), 8);
     } catch (err) {
       setError(err.message);
       refresh();
@@ -132,12 +141,12 @@ export default function Admin() {
         id: item.id,
         url: item.url,
         pathname: item.pathname,
-        settings: playlist.settings,
+        settings: { ...playlist.settings, imageDurationSeconds },
       }),
     });
     if (res.ok) {
       const data = await res.json();
-      setPlaylist({ items: data.items, settings: data.settings });
+      applyPlaylist({ items: data.items, settings: data.settings });
       if (data.warning) setError(data.warning);
     } else {
       const data = await res.json().catch(() => ({}));
@@ -146,10 +155,18 @@ export default function Admin() {
   }
 
   function setImageDuration(value) {
-    setPlaylist((p) => ({
-      ...p,
-      settings: { ...p.settings, imageDurationSeconds: Number(value) },
-    }));
+    setImageDurationSeconds(Number(value));
+  }
+
+  function saveSettings() {
+    const next = {
+      ...playlist,
+      settings: {
+        ...playlist.settings,
+        imageDurationSeconds,
+      },
+    };
+    savePlaylist(next);
   }
 
   if (authed === null) {
@@ -211,11 +228,11 @@ export default function Admin() {
             min="1"
             max="600"
             style={{ width: 80 }}
-            value={playlist.settings.imageDurationSeconds}
+            value={imageDurationSeconds}
             onChange={(e) => setImageDuration(e.target.value)}
           />
           <span>seconds</span>
-          <button className="primary" disabled={saving} onClick={() => savePlaylist(playlist)}>
+          <button className="primary" disabled={saving} onClick={saveSettings}>
             Save
           </button>
         </div>
