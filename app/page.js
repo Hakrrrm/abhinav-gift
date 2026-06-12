@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-const POLL_INTERVAL_MS = 60_000;
+const POLL_INTERVAL_MS = 5_000;
 
 export default function Player() {
   const [playlist, setPlaylist] = useState(null); // null = loading
   const [tick, setTick] = useState(0); // increments on every advance, forces remount
+  const [playlistVersion, setPlaylistVersion] = useState(0);
   const [needsTap, setNeedsTap] = useState(false);
   const videoRef = useRef(null);
   const playlistJson = useRef('');
@@ -16,12 +17,20 @@ export default function Player() {
     let cancelled = false;
     async function load() {
       try {
-        const res = await fetch('/api/playlist', { cache: 'no-store' });
+        const res = await fetch(`/api/playlist?v=${Date.now()}`, {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' },
+        });
         if (!res.ok) return;
         const data = await res.json();
         const json = JSON.stringify(data);
         if (!cancelled && json !== playlistJson.current) {
+          const hadPlaylist = playlistJson.current !== '';
           playlistJson.current = json;
+          videoRef.current?.pause();
+          setNeedsTap(false);
+          setTick((t) => (hadPlaylist ? t + 1 : 0));
+          setPlaylistVersion((version) => version + 1);
           setPlaylist(data);
         }
       } catch {
@@ -86,7 +95,7 @@ export default function Player() {
     <div className="player">
       {item.type === 'video' ? (
         <video
-          key={`${item.url}-${tick}`}
+          key={`${playlistVersion}-${item.url}-${tick}`}
           ref={videoRef}
           src={item.url}
           autoPlay
@@ -97,7 +106,7 @@ export default function Player() {
         />
       ) : (
         <img
-          key={`${item.url}-${tick}`}
+          key={`${playlistVersion}-${item.url}-${tick}`}
           src={item.url}
           alt=""
           onError={advance}

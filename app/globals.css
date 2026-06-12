@@ -16,7 +16,7 @@ body {
   position: fixed;
   inset: 0;
   background: #000;
-  cursor: none;
+  cursor: auto;
   overflow: hidden;
 }
 

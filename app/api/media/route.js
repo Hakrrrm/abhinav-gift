@@ -5,6 +5,14 @@ import { readPlaylist, writePlaylist, hasBlobStore } from '@/lib/playlist';
 
 export const dynamic = 'force-dynamic';
 
+function matchesIdentifier(entry, body) {
+  return (
+    (body.url && entry.url === body.url) ||
+    (body.pathname && entry.pathname === body.pathname) ||
+    (body.id && entry.id === body.id)
+  );
+}
+
 // Admin: register an uploaded blob as a playlist item (called after a
 // client-side upload completes).
 export async function POST(request) {
@@ -52,12 +60,7 @@ export async function DELETE(request) {
   }
 
   const playlist = await readPlaylist();
-  const item = playlist.items.find(
-    (entry) =>
-      entry.url === body.url ||
-      entry.pathname === body.pathname ||
-      entry.id === body.id
-  );
+  const item = playlist.items.find((entry) => matchesIdentifier(entry, body));
 
   if (!item) {
     return NextResponse.json(playlist);
