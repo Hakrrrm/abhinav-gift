@@ -62,7 +62,7 @@ export default function Admin() {
         setUploadStatus(`Uploading ${label}…`);
         const blob = await upload(file.name, file, {
           access: 'public',
-          handleUploadUrl: `${window.location.origin}/api/upload`,
+          handleUploadUrl: '/api/upload',
           multipart: true,
           onUploadProgress: ({ percentage }) =>
             setUploadStatus(`Uploading ${label}… ${Math.round(percentage)}%`),
